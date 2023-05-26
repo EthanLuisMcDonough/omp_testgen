@@ -18,6 +18,12 @@ Name gen_name(const char *str) {
   return name;
 }
 
+OmpObject gen_omp_dataref(const char *str) {
+  DataRef ref(gen_name(str));
+  Designator desig(std::move(ref));
+  return OmpObject(std::move(desig));
+}
+
 namespace DeferredActions {
 // Violates purity constraint
 struct MakePure : public DeferredAction<SubroutineSubprogram> {
@@ -77,16 +83,31 @@ private:
 
 namespace AssociationProperties {
 // "association properties": [ "allocator structured block" ]
-// OpenMPExecutableAllocate | OpenMPAllocatorsConstruct
-template <typename T>
-void allocatorStructuredBlock(T &x, MangleVisitor &visitor) {
+void allocatorStructuredBlock(
+    OpenMPAllocatorsConstruct &x, MangleVisitor &visitor) {
+  const char *n = "unused_allocators_var";
+  auto &clauses = std::get<OmpClauseList>(x.t).v;
+  for (auto &clause : clauses) {
+    if (auto *allocator{std::get_if<OmpClause::Allocate>(&clause.u)}) {
+      auto &objs{std::get<OmpObjectList>(allocator->v.t).v};
+      objs.emplace_back(gen_omp_dataref(n));
+      visitor.addEndAction(
+          std::make_unique<DeferredActions::CreateNewAllocatable>(n));
+      break;
+    }
+  }
+}
+void allocatorStructuredBlock(
+    OpenMPExecutableAllocate &x, MangleVisitor &visitor) {
   const char *n = "unused_allocate_var";
-  auto &alloc = std::get<Statement<AllocateStmt>>(x.t).statement;
-  auto &allocations = std::get<std::list<Allocation>>(alloc.t);
-  std::list<AllocateShapeSpec> shape;
-  std::optional<AllocateCoarraySpec> coarraySpec;
-  allocations.emplace_back(
-      gen_name(n), std::move(shape), std::move(coarraySpec));
+  auto &objs{std::get<std::optional<OmpObjectList>>(x.t)};
+  if (objs.has_value()) {
+    objs->v.push_back(gen_omp_dataref(n));
+  } else {
+    std::list<OmpObject> o;
+    o.push_back(gen_omp_dataref(n));
+    objs = {OmpObjectList(std::move(o))};
+  }
   visitor.addEndAction(
       std::make_unique<DeferredActions::CreateNewAllocatable>(n));
 }
