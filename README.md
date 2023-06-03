@@ -12,7 +12,7 @@ $ cmake -DSHARED_INSTALL_DIR=$INSTALL_DIR ../TestMangler/
 $ make
 $ cd ../Scripts
 $ pip install -r requirements.txt
-$ python3 main.py
+$ FLANG_EXEC=flang-new python3 main.py
 ```
 
 To invoke the plugin from flang directly:
