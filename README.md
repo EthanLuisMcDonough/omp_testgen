@@ -9,6 +9,7 @@ OpenMP test into many failing tests.
 $ mkdir build
 $ cd build
 $ cmake -DSHARED_INSTALL_DIR=$INSTALL_DIR ../TestMangler/
+$ make
 $ cd ../Scripts
 $ pip install -r requirements.txt
 $ python3 main.py
