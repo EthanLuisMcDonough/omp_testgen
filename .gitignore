@@ -1,6 +1,8 @@
 .env
 __pycache__
 *.pyc
+*.tmp
 build
 .vscode
 .conda
+TestBin
