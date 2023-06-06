@@ -4,6 +4,16 @@
 #include <cstring>
 #include <variant>
 
+// Only check a specified function once
+#define RUN_ONCE(fn, ...) \
+  if (!uniqueRegistered(#fn)) { \
+    registerUniqueEvent(#fn); \
+    if (canModify()) { \
+      fn(__VA_ARGS__); \
+      setModified(); \
+    } \
+  }
+
 #define RUN_CHECK(b) \
   if (canModify()) { \
     b; \
@@ -11,6 +21,7 @@
   }
 
 using namespace Fortran::parser;
+using namespace Testgen;
 
 Name gen_name(const char *str) {
   CharBlock chars{str, strlen(str)};
@@ -114,8 +125,7 @@ void allocatorStructuredBlock(
 } // namespace AssociationProperties
 
 namespace SharedProperties {
-// Opposite of pure
-// Should throw error if directive appears in impure function
+// Should throw error if impure directive appears in pure function
 void sharedPure(MangleVisitor &visitor) {
   visitor.addEndAction(std::make_unique<DeferredActions::MakePure>());
 }
@@ -123,12 +133,12 @@ void sharedPure(MangleVisitor &visitor) {
 
 void MangleVisitor::Post(OpenMPExecutableAllocate &x) {
   RUN_CHECK(AssociationProperties::allocatorStructuredBlock(x, *this))
-  RUN_CHECK(SharedProperties::sharedPure(*this))
+  RUN_ONCE(SharedProperties::sharedPure, *this)
 }
 
 void MangleVisitor::Post(OpenMPAllocatorsConstruct &x) {
   RUN_CHECK(AssociationProperties::allocatorStructuredBlock(x, *this))
-  RUN_CHECK(SharedProperties::sharedPure(*this))
+  RUN_ONCE(SharedProperties::sharedPure, *this)
 }
 
 void MangleVisitor::Post(SubroutineSubprogram &x) {

@@ -12,6 +12,7 @@
 #include <cstdlib>
 
 using namespace Fortran::frontend;
+using namespace Testgen;
 
 class MangleAction : public PluginParseTreeAction {
   void executeAction() override {
@@ -32,7 +33,7 @@ class MangleAction : public PluginParseTreeAction {
     auto &parseTree{getParsing().parseTree()};
     auto &invoc = getInstance().getInvocation();
 
-    Fortran::parser::MangleVisitor visitor(offset);
+    MangleVisitor visitor(offset);
     Fortran::parser::Walk(parseTree, visitor);
 
     if (!visitor.wasModified()) {
