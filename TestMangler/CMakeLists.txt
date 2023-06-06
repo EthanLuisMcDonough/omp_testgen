@@ -6,14 +6,17 @@ set(CMAKE_CXX_STANDARD_REQUIRED TRUE)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
 set(SHARED_INSTALL_DIR "" CACHE PATH "Shared installation directory")
-set(TM_FLANG_INSTALL_DIR "${SHARED_INSTALL_DIR}" CACHE PATH "Flang installation directory")
+set(TM_LLVM_INSTALL_DIR "${SHARED_INSTALL_DIR}" CACHE PATH "LLVM installation directory")
 set(TM_CLANG_INSTALL_DIR "${SHARED_INSTALL_DIR}" CACHE PATH "Clang installation directory")
 set(TM_MLIR_INSTALL_DIR "${SHARED_INSTALL_DIR}" CACHE PATH "MLIR installation directory")
+set(TM_FLANG_INSTALL_DIR "${SHARED_INSTALL_DIR}" CACHE PATH "Flang installation directory")
 
-list(APPEND CMAKE_PREFIX_PATH "${TM_FLANG_INSTALL_DIR}/lib/cmake/flang/"
+list(APPEND CMAKE_PREFIX_PATH "${TM_LLVM_INSTALL_DIR}/lib/cmake/llvm/"
     "${TM_CLANG_INSTALL_DIR}/lib/cmake/clang/"
-    "${TM_CLANG_INSTALL_DIR}/lib/cmake/mlir/")
+    "${TM_MLIR_INSTALL_DIR}/lib/cmake/mlir/"
+    "${TM_FLANG_INSTALL_DIR}/lib/cmake/flang/")
 
+find_package(LLVM REQUIRED)
 find_package(Clang REQUIRED CONFIG)
 find_package(MLIR REQUIRED CONFIG)
 find_package(Flang REQUIRED flangFrontend CONFIG)
