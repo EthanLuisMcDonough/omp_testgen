@@ -102,7 +102,7 @@ void allocatorStructuredBlock(
     if (auto *allocator{std::get_if<OmpClause::Allocate>(&clause.u)}) {
       auto &objs{std::get<OmpObjectList>(allocator->v.t).v};
       objs.emplace_back(gen_omp_dataref(n));
-      visitor.addEndAction(
+      visitor.addAction(
           std::make_unique<DeferredActions::CreateNewAllocatable>(n));
       break;
     }
@@ -119,15 +119,14 @@ void allocatorStructuredBlock(
     o.push_back(gen_omp_dataref(n));
     objs = {OmpObjectList(std::move(o))};
   }
-  visitor.addEndAction(
-      std::make_unique<DeferredActions::CreateNewAllocatable>(n));
+  visitor.addAction(std::make_unique<DeferredActions::CreateNewAllocatable>(n));
 }
 } // namespace AssociationProperties
 
 namespace SharedProperties {
 // Should throw error if impure directive appears in pure function
 void sharedPure(MangleVisitor &visitor) {
-  visitor.addEndAction(std::make_unique<DeferredActions::MakePure>());
+  visitor.addAction(std::make_unique<DeferredActions::MakePure>());
 }
 } // namespace SharedProperties
 
@@ -146,4 +145,18 @@ void MangleVisitor::Post(SubroutineSubprogram &x) {
     action->run(x);
   }
   endActions.clear();
+}
+
+void MangleVisitor::Post(OmpClauseList &x) {
+  if (clauseAction.has_value()) {
+    (*clauseAction)->run(x.v);
+    clauseAction = std::nullopt;
+  }
+}
+
+void MangleVisitor::Post(OmpAtomicClauseList &x) {
+  if (clauseAction.has_value()) {
+    (*clauseAction)->run(x.v);
+    clauseAction = std::nullopt;
+  }
 }
