@@ -35,10 +35,13 @@ struct MangleVisitor {
   template <typename A> bool Pre(A &) { return true; }
   template <typename A> void Post(A &) {}
 
+  // Function template for scheduling deferred actions that
+  // modify clause positions
+  template <typename T> void VisitClause(T &, size_t, bool) {}
+
   void Post(Fortran::parser::OpenMPExecutableAllocate &);
   void Post(Fortran::parser::OpenMPAllocatorsConstruct &);
   void Post(Fortran::parser::SubroutineSubprogram &);
-
   void Post(Fortran::parser::OmpClauseList &);
   void Post(Fortran::parser::OmpAtomicClauseList &);
 
@@ -87,6 +90,13 @@ private:
   // Track index and modified status
   void setModified() { modified = true; }
   bool canModify() { return ++index == offset; }
+
+  template <typename T> void applyClauseAction(T &clauseList) {
+    if (clauseAction.has_value()) {
+      (*clauseAction)->run(clauseList.v);
+      clauseAction = std::nullopt;
+    }
+  }
 };
 
 } // namespace Testgen
