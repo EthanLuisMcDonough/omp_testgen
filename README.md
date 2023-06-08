@@ -17,6 +17,6 @@ $ FLANG_EXEC=flang-new python3 main.py
 
 To invoke the plugin from flang directly:
 ```console
-$ MANGLE_OFFSET=1 flang-new -fc1 -load build/libtestMangler.so \
+$ MANGLE_OFFSET=1 flang-new -fc1 -fopenmp -load build/libtestMangler.so \
 > -plugin test-mangle BaseTests/allocators.f90
 ```
