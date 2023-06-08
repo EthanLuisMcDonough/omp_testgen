@@ -19,16 +19,35 @@ template <typename T> struct DeferredAction {
 };
 typedef DeferredAction<Fortran::parser::SubroutineSubprogram> EndAction;
 
+typedef std::list<Fortran::parser::OmpClause> OmpClauses;
+typedef std::list<Fortran::parser::OmpAtomicClause> OmpAtomicClauses;
+
+typedef std::list<Fortran::parser::OmpClause>::const_iterator OmpClauseIter;
+typedef std::list<Fortran::parser::OmpAtomicClause>::const_iterator
+    OmpAtomicClauseIter;
+
 // Deferred actions that manipulate the order and existence of clauses
 struct DeferredClauseAction {
-  virtual void run(std::list<Fortran::parser::OmpClause> &list) {}
-  virtual void run(std::list<Fortran::parser::OmpAtomicClause> &list) {}
+  virtual void run(OmpClauses &list, OmpClauseIter iter) {}
+  virtual void run(OmpAtomicClauses &list, OmpAtomicClauseIter iter) {}
 
-  DeferredClauseAction(size_t i) : index(i) {}
+  void run(OmpClauses &list) {
+    if (const auto *i = std::get_if<OmpClauseIter>(&index)) {
+      run(list, *i);
+    }
+  }
+  void run(OmpAtomicClauses &list) {
+    if (const auto *i = std::get_if<OmpAtomicClauseIter>(&index)) {
+      run(list, *i);
+    }
+  }
+
+  DeferredClauseAction(std::variant<OmpClauseIter, OmpAtomicClauseIter> i)
+      : index(i) {}
   virtual ~DeferredClauseAction() = default;
 
 private:
-  size_t index;
+  std::variant<OmpClauseIter, OmpAtomicClauseIter> index;
 };
 
 struct MangleVisitor {
@@ -37,10 +56,11 @@ struct MangleVisitor {
 
   // Function template for scheduling deferred actions that
   // modify clause positions
-  template <typename T> void VisitClause(T &, size_t, bool) {}
+  template <typename C, typename I> void VisitClause(const C &, I, bool) {}
 
   void Post(Fortran::parser::OpenMPExecutableAllocate &);
   void Post(Fortran::parser::OpenMPAllocatorsConstruct &);
+
   void Post(Fortran::parser::SubroutineSubprogram &);
   void Post(Fortran::parser::OmpClauseList &);
   void Post(Fortran::parser::OmpAtomicClauseList &);

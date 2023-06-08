@@ -91,6 +91,7 @@ private:
     return nullptr;
   }
 };
+
 } // namespace DeferredActions
 
 namespace AssociationProperties {
@@ -149,31 +150,29 @@ void MangleVisitor::Post(SubroutineSubprogram &x) {
 }
 
 void MangleVisitor::Post(OmpClauseList &x) {
-  size_t i = 0;
-  for (auto &clause : x.v) {
-    // Feed values and indices into VisitClause
-    std::visit([&](auto &&c) { VisitClause(c, i++, false); }, clause.u);
+  // Feed values and iterators into VisitClause
+  for (OmpClauseIter it = x.v.begin(); it != x.v.end(); it++) {
+    std::visit([&](auto &&c) { VisitClause(c, it, false); }, it->u);
   }
 
   applyClauseAction(x);
 }
 
 void MangleVisitor::Post(OmpAtomicClauseList &x) {
-  size_t i = 0;
-  for (auto &atomicClause : x.v) {
-    // Feed values and indices into VisitClause
+  // Feed values and indices into VisitClause
+  for (OmpAtomicClauseIter it = x.v.begin(); it != x.v.end(); it++) {
     Fortran::common::visit(
         Fortran::common::visitors{
-            [&](OmpClause &clause) {
+            [&](const OmpClause &clause) {
               std::visit(
-                  [&](auto &&c) { VisitClause(c, i++, false); }, clause.u);
+                  [&](auto &&c) { VisitClause(c, it, false); }, clause.u);
             },
-            [&](OmpMemoryOrderClause &orderClause) {
-              std::visit([&](auto &&c) { VisitClause(c, i++, true); },
-                  orderClause.v.u);
+            [&](const OmpMemoryOrderClause &orderClause) {
+              std::visit(
+                  [&](auto &&c) { VisitClause(c, it, true); }, orderClause.v.u);
             },
         },
-        atomicClause.u);
+        it->u);
   }
 
   applyClauseAction(x);
