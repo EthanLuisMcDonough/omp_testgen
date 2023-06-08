@@ -92,6 +92,14 @@ private:
   }
 };
 
+struct DeleteClause : public DeferredClauseAction {
+  void run(OmpClauses &list, OmpClauseIter iter) override { list.erase(iter); }
+  void run(OmpAtomicClauses &list, OmpAtomicClauseIter iter) override {
+    list.erase(iter);
+  }
+  DeleteClause(std::variant<OmpClauseIter, OmpAtomicClauseIter> i)
+      : DeferredClauseAction(i) {}
+};
 } // namespace DeferredActions
 
 namespace AssociationProperties {
@@ -131,6 +139,14 @@ void sharedPure(MangleVisitor &visitor) {
   visitor.addAction(std::make_unique<DeferredActions::MakePure>());
 }
 } // namespace SharedProperties
+
+namespace ClauseProperties {
+
+template <typename T> void required(T index, MangleVisitor &visitor) {
+  visitor.addAction(std::make_unique<DeferredActions::DeleteClause>(index));
+}
+
+} // namespace ClauseProperties
 
 void MangleVisitor::Post(OpenMPExecutableAllocate &x) {
   RUN_CHECK(AssociationProperties::allocatorStructuredBlock(x, *this))
