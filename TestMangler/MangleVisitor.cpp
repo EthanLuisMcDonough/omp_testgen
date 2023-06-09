@@ -24,16 +24,31 @@
 using namespace Fortran::parser;
 using namespace Testgen;
 
-Name gen_name(const char *str) {
+Name genName(const char *str) {
   CharBlock chars{str, strlen(str)};
   Name name{chars};
   return name;
 }
 
-OmpObject gen_omp_dataref(const char *str) {
-  DataRef ref(gen_name(str));
+OmpObject genOmpDataref(const char *str) {
+  DataRef ref(genName(str));
   Designator desig(std::move(ref));
   return OmpObject(std::move(desig));
+}
+
+OmpClause cloneConstruct(const OmpClause &x) {
+  OmpClause::Acquire defaultClause;
+  OmpClause c(std::move(defaultClause));
+  memcpy(&c, &x, sizeof(OmpClause));
+  return c;
+}
+
+OmpAtomicClause cloneConstruct(const OmpAtomicClause &x) {
+  OmpClause::Acquire defaultClause;
+  OmpClause c(std::move(defaultClause));
+  OmpAtomicClause ac(std::move(c));
+  memcpy(&ac, &x, sizeof(OmpClause));
+  return ac;
 }
 
 namespace DeferredActions {
@@ -66,7 +81,7 @@ struct CreateNewAllocatable : public DeferredAction<SubroutineSubprogram> {
         std::optional<CoarraySpec> coarrSpec;
         std::optional<CharLength> charLen;
         std::optional<Initialization> init;
-        variables.emplace_back(gen_name(ident_name), std::move(arrSpec),
+        variables.emplace_back(genName(ident_name), std::move(arrSpec),
             std::move(coarrSpec), std::move(charLen), std::move(init));
         break;
       }
@@ -100,6 +115,17 @@ struct DeleteClause : public DeferredClauseAction {
   DeleteClause(std::variant<OmpClauseIter, OmpAtomicClauseIter> i)
       : DeferredClauseAction(i) {}
 };
+
+struct DuplicateClause : public DeferredClauseAction {
+  void run(OmpClauses &list, OmpClauseIter iter) override {
+    list.push_back(cloneConstruct(*iter));
+  }
+  void run(OmpAtomicClauses &list, OmpAtomicClauseIter iter) override {
+    list.push_back(cloneConstruct(*iter));
+  }
+  DuplicateClause(std::variant<OmpClauseIter, OmpAtomicClauseIter> i)
+      : DeferredClauseAction(i) {}
+};
 } // namespace DeferredActions
 
 namespace AssociationProperties {
@@ -111,7 +137,7 @@ void allocatorStructuredBlock(
   for (auto &clause : clauses) {
     if (auto *allocator{std::get_if<OmpClause::Allocate>(&clause.u)}) {
       auto &objs{std::get<OmpObjectList>(allocator->v.t).v};
-      objs.emplace_back(gen_omp_dataref(n));
+      objs.emplace_back(genOmpDataref(n));
       visitor.addAction(
           std::make_unique<DeferredActions::CreateNewAllocatable>(n));
       break;
@@ -123,10 +149,10 @@ void allocatorStructuredBlock(
   const char *n = "unused_allocate_var";
   auto &objs{std::get<std::optional<OmpObjectList>>(x.t)};
   if (objs.has_value()) {
-    objs->v.push_back(gen_omp_dataref(n));
+    objs->v.push_back(genOmpDataref(n));
   } else {
     std::list<OmpObject> o;
-    o.push_back(gen_omp_dataref(n));
+    o.push_back(genOmpDataref(n));
     objs = {OmpObjectList(std::move(o))};
   }
   visitor.addAction(std::make_unique<DeferredActions::CreateNewAllocatable>(n));
@@ -146,6 +172,10 @@ template <typename T> void required(T index, MangleVisitor &visitor) {
   visitor.addAction(std::make_unique<DeferredActions::DeleteClause>(index));
 }
 
+template <typename T> void unique(T index, MangleVisitor &visitor) {
+  visitor.addAction(std::make_unique<DeferredActions::DuplicateClause>(index));
+}
+
 } // namespace ClauseProperties
 
 void MangleVisitor::Post(OpenMPExecutableAllocate &x) {
@@ -158,6 +188,12 @@ void MangleVisitor::Post(OpenMPAllocatorsConstruct &x) {
   RUN_ONCE(SharedProperties::sharedPure, *this)
 }
 
+template <typename I>
+void MangleVisitor::VisitClause(const OmpClause::Device &c, I iter, bool _) {
+  RUN_CHECK(ClauseProperties::unique(iter, *this))
+}
+
+/// Event execution
 void MangleVisitor::Post(SubroutineSubprogram &x) {
   for (const auto &action : endActions) {
     action->run(x);

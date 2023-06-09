@@ -46,6 +46,7 @@ class MangleAction : public PluginParseTreeAction {
         false, nullptr,
         invoc.getUseAnalyzedObjectsForUnparse() ? &invoc.getAsFortran()
                                                 : nullptr);
+    exit(0);
   }
 
   bool beginSourceFileAction() override { return runPrescan() && runParse(); }

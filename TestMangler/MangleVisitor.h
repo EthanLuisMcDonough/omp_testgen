@@ -65,6 +65,9 @@ struct MangleVisitor {
   void Post(Fortran::parser::OmpClauseList &);
   void Post(Fortran::parser::OmpAtomicClauseList &);
 
+  template <typename I>
+  void VisitClause(const Fortran::parser::OmpClause::Device &, I, bool);
+
   MangleVisitor(size_t o = 0) : offset{o} {}
 
   // This test format expects directive tests to be inside SubroutineSubprograms
